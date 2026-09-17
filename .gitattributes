@@ -1,0 +1,3 @@
+# 빌드는 macOS 러너에서 돈다. 줄바꿈은 항상 LF로 저장한다.
+* text=auto eol=lf
+*.png binary

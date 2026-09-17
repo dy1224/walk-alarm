@@ -1,0 +1,52 @@
+name: WalkAlarm
+
+options:
+  bundleIdPrefix: com.geumdongyup
+  createIntermediateGroups: true
+  developmentLanguage: ko
+  minimumXcodeGenVersion: "2.38.0"
+  deploymentTarget:
+    iOS: "26.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    IPHONEOS_DEPLOYMENT_TARGET: "26.0"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    SWIFT_STRICT_CONCURRENCY: complete
+
+targets:
+  WalkAlarm:
+    type: application
+    platform: iOS
+    sources:
+      - path: WalkAlarm
+        excludes:
+          - "Support/Info.plist"
+    settings:
+      base:
+        PRODUCT_NAME: WalkAlarm
+        PRODUCT_BUNDLE_IDENTIFIER: com.geumdongyup.walkalarm
+        INFOPLIST_FILE: WalkAlarm/Support/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: ""
+        DEVELOPMENT_TEAM: ""
+        # 무료 Apple ID + Sideloadly 재서명을 전제로 하므로 빌드 단계에서는 서명하지 않는다.
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGNING_ALLOWED: NO
+
+schemes:
+  WalkAlarm:
+    build:
+      targets:
+        WalkAlarm: all
+    run:
+      config: Debug
+    archive:
+      config: Release

@@ -1,0 +1,15 @@
+# XcodeGen이 러너에서 생성하므로 저장소에 넣지 않는다.
+*.xcodeproj
+*.xcworkspace
+
+# 빌드 산출물
+build/
+out/
+DerivedData/
+*.ipa
+*.dSYM.zip
+
+# macOS / Windows 잡파일
+.DS_Store
+Thumbs.db
+desktop.ini

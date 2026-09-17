@@ -1,0 +1,87 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ipa:
+    name: Unsigned .ipa
+    runs-on: macos-26
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Runner에 설치된 Xcode 목록
+        run: ls -1 /Applications | grep -i '^Xcode' || true
+
+      - name: Xcode 26 이상 선택
+        run: |
+          set -euo pipefail
+          latest="$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1 || true)"
+          if [ -z "$latest" ]; then
+            echo "::error::러너에 Xcode가 없습니다."
+            exit 1
+          fi
+          sudo xcode-select -s "$latest/Contents/Developer"
+          xcodebuild -version
+          major="$(xcodebuild -version | head -1 | sed -E 's/Xcode ([0-9]+).*/\1/')"
+          if [ "$major" -lt 26 ]; then
+            echo "::error::Xcode 26 이상이 필요합니다 (발견: $major). runs-on 이미지를 바꿔야 합니다."
+            exit 1
+          fi
+
+      - name: XcodeGen 설치
+        run: brew install xcodegen
+
+      - name: Xcode 프로젝트 생성
+        run: |
+          set -euo pipefail
+          xcodegen generate --spec project.yml
+          ls -la WalkAlarm.xcodeproj
+
+      - name: 빌드 (Release / iphoneos / 서명 없음)
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project WalkAlarm.xcodeproj \
+            -scheme WalkAlarm \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            clean build
+
+      - name: .ipa 포장
+        run: |
+          set -euo pipefail
+          app="build/Build/Products/Release-iphoneos/WalkAlarm.app"
+          if [ ! -d "$app" ]; then
+            echo "::error::빌드 결과물을 찾을 수 없습니다: $app"
+            find build/Build/Products -maxdepth 3 -name '*.app' || true
+            exit 1
+          fi
+          rm -rf out
+          mkdir -p out/Payload
+          cp -R "$app" out/Payload/
+          (cd out && zip -qry ../WalkAlarm-unsigned.ipa Payload)
+          ls -lh WalkAlarm-unsigned.ipa
+
+      - name: artifact 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: WalkAlarm-unsigned-ipa
+          path: WalkAlarm-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 30
