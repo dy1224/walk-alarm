@@ -228,7 +228,6 @@ struct DebugView: View {
         GlassCard(cornerRadius: 20, padding: 18) {
             VStack(alignment: .leading, spacing: 8) {
                 cardTitle("다음 단계")
-                stageLine("3단계", "카메라 Bv 측정 + 실시간 그래프 + CSV 내보내기")
                 stageLine("4단계", "상태 머신 + 앱 내 울림/일시정지 + 연쇄 알람 + '도착했어요'")
             }
         }

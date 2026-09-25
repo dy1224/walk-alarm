@@ -141,10 +141,10 @@ struct HomeView: View {
         } else {
             GlassCard(cornerRadius: 20, padding: 18) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("2단계 확인용 빌드예요")
+                    Text("3단계 확인용 빌드예요")
                         .font(Theme.body)
                         .foregroundStyle(Theme.ink)
-                    Text("알람이 시스템 알람으로 울려요. 알람 화면의 미션 시작을 누르면 앱이 열립니다. 잠금·무음 상태 확인은 디버그 화면의 1분 뒤 알람 테스트로 해 보세요.")
+                    Text("측정 탭에서 폰을 들고 방에서 밖까지 걸으며 밝기를 기록해 주세요. 이 기록으로 4단계의 '걸으면 멈추는' 기준을 맞춥니다.")
                         .font(Theme.label)
                         .foregroundStyle(Theme.inkSoft)
                         .fixedSize(horizontal: false, vertical: true)

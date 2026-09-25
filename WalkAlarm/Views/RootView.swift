@@ -1,19 +1,22 @@
 import SwiftUI
 
-/// 화면 두 개. 울림·해제 완료 화면은 4단계에서 붙는다.
+/// 알람 / 측정 / 디버그 탭. 울림·해제 완료 화면은 4단계에서 붙는다.
 struct RootView: View {
 
     @Environment(\.scenePhase) private var scenePhase
     @State private var selection: Screen = .alarm
 
     private enum Screen: Hashable {
-        case alarm, debug
+        case alarm, measure, debug
     }
 
     var body: some View {
         TabView(selection: $selection) {
             Tab("알람", systemImage: "alarm", value: Screen.alarm) {
                 HomeView()
+            }
+            Tab("측정", systemImage: "sun.max", value: Screen.measure) {
+                MeasureView()
             }
             Tab("디버그", systemImage: "waveform.path.ecg", value: Screen.debug) {
                 DebugView()
