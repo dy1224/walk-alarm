@@ -197,8 +197,10 @@ final class AlarmScheduler {
     // MARK: - 테스트 알람
 
     /// 지금부터 `seconds`초 뒤에 한 번 울리는 알람. 잠금·무음 상태 확인용.
+    /// 테스트 알람은 한 번에 하나만 둔다. 이전 것은 취소한다.
     func scheduleTest(after seconds: TimeInterval) async {
         guard await requestAuthorizationIfNeeded() else { return }
+        cancelTests()
 
         let id = UUID()
         let fireDate = Date().addingTimeInterval(seconds)
@@ -220,6 +222,7 @@ final class AlarmScheduler {
 
     /// 매일 알람을 뺀 나머지(테스트 알람)를 모두 취소한다.
     func cancelTests() {
+        refreshAlarms()
         for entry in entries where entry.id != dailyID {
             do {
                 try AlarmManager.shared.cancel(id: entry.id)
@@ -237,19 +240,32 @@ final class AlarmScheduler {
     func handleMissionStart(alarmID: String) {
         lastMissionStart = Date()
         AppLogger.shared.state("미션 시작 버튼으로 앱 열림 · \(alarmID.prefix(8))", category: "alarm")
-        stopIfAlerting(alarmID: alarmID)
+        stopAllAlerting(pressed: alarmID)
     }
 
     /// 시스템 알람 화면에서 "끄기"를 눌렀다.
     func handleStop(alarmID: String) {
         AppLogger.shared.state("시스템 알람 끄기 버튼 · \(alarmID.prefix(8))", category: "alarm")
-        stopIfAlerting(alarmID: alarmID)
+        stopAllAlerting(pressed: alarmID)
     }
 
-    private func stopIfAlerting(alarmID: String) {
-        guard let id = UUID(uuidString: alarmID) else { return }
-        // 시스템이 이미 멈췄으면 오류가 나므로 무시한다.
-        try? AlarmManager.shared.stop(id: id)
+    /// 버튼이 눌린 알람과, 함께 울리고 있는 다른 알람을 모두 멈춘다.
+    /// 여러 알람이 같은 시각에 울리면 버튼은 그중 하나에만 전달되기 때문이다.
+    private func stopAllAlerting(pressed alarmID: String) {
+        if let id = UUID(uuidString: alarmID) {
+            // 시스템이 이미 멈췄으면 오류가 나므로 무시한다.
+            try? AlarmManager.shared.stop(id: id)
+        }
+        let others = ((try? AlarmManager.shared.alarms) ?? [])
+            .filter { Self.describe($0.state) == "alerting" && $0.id.uuidString != alarmID }
+        for alarm in others {
+            do {
+                try AlarmManager.shared.stop(id: alarm.id)
+                AppLogger.shared.state("함께 울리던 알람도 멈춤 · \(Self.short(alarm.id))", category: "alarm")
+            } catch {
+                report("함께 울리던 알람 멈추기 실패", error)
+            }
+        }
         refreshAlarms()
     }
 
