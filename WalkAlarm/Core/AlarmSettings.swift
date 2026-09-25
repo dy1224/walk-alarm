@@ -5,6 +5,10 @@ import Observation
 ///
 /// 1단계에서는 값을 저장하고 화면에 보여주는 것까지만 한다.
 /// 실제 예약(AlarmKit)은 2단계에서 이 값을 읽어 붙인다.
+///
+/// 값이 바뀔 때 UserDefaults에 쓰고 로그를 남겨야 하는데, `@Observable`은 저장
+/// 프로퍼티를 계산 프로퍼티로 바꾸므로 `didSet`을 쓸 수 없다. 대신 저장은
+/// `@ObservationIgnored` 뒤에 숨기고 `access`/`withMutation`으로 직접 알린다.
 @Observable
 final class AlarmSettings: @unchecked Sendable {
 
@@ -16,28 +20,46 @@ final class AlarmSettings: @unchecked Sendable {
         static let minute = "alarm.minute"
     }
 
-    private let defaults = UserDefaults.standard
+    @ObservationIgnored private let defaults = UserDefaults.standard
+    @ObservationIgnored private var storedIsEnabled: Bool
+    @ObservationIgnored private var storedHour: Int
+    @ObservationIgnored private var storedMinute: Int
 
     var isEnabled: Bool {
-        didSet {
-            guard oldValue != isEnabled else { return }
-            defaults.set(isEnabled, forKey: Key.isEnabled)
-            AppLogger.shared.info("알람 \(isEnabled ? "켜기" : "끄기") · \(timeText)", category: "settings")
+        get {
+            access(keyPath: \.isEnabled)
+            return storedIsEnabled
+        }
+        set {
+            guard storedIsEnabled != newValue else { return }
+            withMutation(keyPath: \.isEnabled) { storedIsEnabled = newValue }
+            defaults.set(newValue, forKey: Key.isEnabled)
+            AppLogger.shared.info("알람 \(newValue ? "켜기" : "끄기") · \(timeText)", category: "settings")
         }
     }
 
     var hour: Int {
-        didSet {
-            guard oldValue != hour else { return }
-            defaults.set(hour, forKey: Key.hour)
+        get {
+            access(keyPath: \.hour)
+            return storedHour
+        }
+        set {
+            guard storedHour != newValue else { return }
+            withMutation(keyPath: \.hour) { storedHour = newValue }
+            defaults.set(newValue, forKey: Key.hour)
             AppLogger.shared.info("알람 시각 변경 · \(timeText)", category: "settings")
         }
     }
 
     var minute: Int {
-        didSet {
-            guard oldValue != minute else { return }
-            defaults.set(minute, forKey: Key.minute)
+        get {
+            access(keyPath: \.minute)
+            return storedMinute
+        }
+        set {
+            guard storedMinute != newValue else { return }
+            withMutation(keyPath: \.minute) { storedMinute = newValue }
+            defaults.set(newValue, forKey: Key.minute)
             AppLogger.shared.info("알람 시각 변경 · \(timeText)", category: "settings")
         }
     }
@@ -48,9 +70,9 @@ final class AlarmSettings: @unchecked Sendable {
             Key.hour: 7,
             Key.minute: 0,
         ])
-        isEnabled = defaults.bool(forKey: Key.isEnabled)
-        hour = defaults.integer(forKey: Key.hour)
-        minute = defaults.integer(forKey: Key.minute)
+        storedIsEnabled = defaults.bool(forKey: Key.isEnabled)
+        storedHour = defaults.integer(forKey: Key.hour)
+        storedMinute = defaults.integer(forKey: Key.minute)
     }
 
     /// 큰 세리프 표시용. 예: `07:00`
