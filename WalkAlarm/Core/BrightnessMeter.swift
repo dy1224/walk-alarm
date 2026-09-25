@@ -157,18 +157,18 @@ final class BrightnessMeter: NSObject, AVCaptureVideoDataOutputSampleBufferDeleg
     private func observeSession() {
         let center = NotificationCenter.default
         observers.append(center.addObserver(
-            forName: .AVCaptureSessionWasInterrupted, object: session, queue: nil
+            forName: AVCaptureSession.wasInterruptedNotification, object: session, queue: nil
         ) { note in
             let reason = (note.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int).map(String.init) ?? "?"
             AppLogger.shared.warn("카메라 중단 · reason \(reason)", category: "camera")
         })
         observers.append(center.addObserver(
-            forName: .AVCaptureSessionInterruptionEnded, object: session, queue: nil
+            forName: AVCaptureSession.interruptionEndedNotification, object: session, queue: nil
         ) { _ in
             AppLogger.shared.info("카메라 재개", category: "camera")
         })
         observers.append(center.addObserver(
-            forName: .AVCaptureSessionRuntimeError, object: session, queue: nil
+            forName: AVCaptureSession.runtimeErrorNotification, object: session, queue: nil
         ) { note in
             let error = note.userInfo?[AVCaptureSessionErrorKey] as? NSError
             AppLogger.shared.error("카메라 오류 · \(error?.localizedDescription ?? "알 수 없음")", category: "camera")
