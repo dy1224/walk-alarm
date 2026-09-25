@@ -3,10 +3,12 @@ import SwiftUI
 /// 디버그 화면.
 ///
 /// 실행 중 콘솔을 볼 수 없으므로 이 화면이 유일한 관측 창구다.
-/// 1단계에서는 앱 정보와 로그 보기·내보내기까지. Bv 그래프와 판정 파라미터는 3·4단계에서 붙는다.
+/// 2단계: 앱 정보, AlarmKit 상태와 테스트 알람, 로그 보기·내보내기. Bv 그래프와 판정 파라미터는 3·4단계에서 붙는다.
 struct DebugView: View {
 
     @State private var store = LogStore.shared
+    @State private var scheduler = AlarmScheduler.shared
+    @State private var isSchedulingTest = false
     @State private var isClearConfirmOpen = false
     @State private var fileSizeText = "-"
 
@@ -21,6 +23,7 @@ struct DebugView: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         appInfoCard
+                        alarmCard
                         logCard
                         logFilesCard
                         nextStageCard
@@ -46,6 +49,69 @@ struct DebugView: View {
                 InfoRow(label: "번들 ID", value: AppInfo.bundleID, isMono: true)
                 InfoRow(label: "iOS", value: AppInfo.systemVersion)
                 InfoRow(label: "기기", value: AppInfo.deviceModel, isMono: true)
+            }
+        }
+    }
+
+    // MARK: - 알람
+
+    private var alarmCard: some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: 12) {
+                cardTitle("알람 (AlarmKit)")
+                InfoRow(label: "권한", value: scheduler.authorization.text)
+                InfoRow(label: "예약된 알람", value: "\(scheduler.entries.count)개")
+
+                if !scheduler.entries.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(scheduler.entries) { entry in
+                            Text("\(entry.kind) · \(entry.scheduleText) · \(entry.stateText) · \(entry.id.uuidString.prefix(8))")
+                                .font(Theme.mono)
+                                .foregroundStyle(Theme.ink)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                    .padding(12)
+                    .background(Color.black.opacity(0.22), in: .rect(cornerRadius: 14))
+                }
+
+                if let error = scheduler.lastError {
+                    Text(error)
+                        .font(Theme.label)
+                        .foregroundStyle(Theme.signal)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Text("테스트 알람을 예약한 뒤 화면을 잠그고 무음 스위치를 켜 두세요. 1분 뒤 시스템 알람이 울려야 합니다.")
+                    .font(Theme.label)
+                    .foregroundStyle(Theme.inkSoft)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                VStack(spacing: 10) {
+                    Button {
+                        isSchedulingTest = true
+                        Task {
+                            await scheduler.scheduleTest(after: 60)
+                            isSchedulingTest = false
+                            refresh()
+                        }
+                    } label: {
+                        actionLabel("1분 뒤 알람 테스트", systemImage: "alarm")
+                    }
+                    .buttonStyle(.glass)
+                    .disabled(isSchedulingTest)
+
+                    Button {
+                        scheduler.cancelTests()
+                        refresh()
+                    } label: {
+                        actionLabel("테스트 알람 모두 취소", systemImage: "xmark.circle")
+                    }
+                    .buttonStyle(.glass)
+                    .disabled(!scheduler.entries.contains { $0.kind == "테스트" })
+                }
+                .font(Theme.label)
+                .foregroundStyle(Theme.ink)
             }
         }
     }
@@ -162,7 +228,6 @@ struct DebugView: View {
         GlassCard(cornerRadius: 20, padding: 18) {
             VStack(alignment: .leading, spacing: 8) {
                 cardTitle("다음 단계")
-                stageLine("2단계", "AlarmKit 알람 1개 + 알람 화면의 '미션 시작' 버튼")
                 stageLine("3단계", "카메라 Bv 측정 + 실시간 그래프 + CSV 내보내기")
                 stageLine("4단계", "상태 머신 + 앱 내 울림/일시정지 + 연쇄 알람 + '도착했어요'")
             }
@@ -213,6 +278,7 @@ struct DebugView: View {
 
     private func refresh() {
         fileSizeText = logger.currentFileSizeText()
+        scheduler.refreshAlarms()
     }
 }
 

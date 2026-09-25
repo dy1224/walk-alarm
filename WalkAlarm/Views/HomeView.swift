@@ -6,7 +6,9 @@ import SwiftUI
 struct HomeView: View {
 
     @State private var settings = AlarmSettings.shared
+    @State private var scheduler = AlarmScheduler.shared
     @State private var isPickerOpen = false
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         ZStack {
@@ -17,7 +19,10 @@ struct HomeView: View {
                 header
                 timeDisplay
                 enableCard
-                stageNotice
+                if let started = scheduler.lastMissionStart {
+                    missionCard(started)
+                }
+                statusCard
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 24)
@@ -26,6 +31,8 @@ struct HomeView: View {
         .sheet(isPresented: $isPickerOpen) {
             TimePickerSheet(settings: settings)
         }
+        .onChange(of: settings.isEnabled) { scheduler.requestSync() }
+        .onChange(of: settings.timeText) { scheduler.requestSync() }
     }
 
     private var header: some View {
@@ -47,7 +54,7 @@ struct HomeView: View {
                 Text(settings.timeText)
                     .font(Theme.display(84))
                     .foregroundStyle(Theme.ink)
-                Text(settings.isEnabled ? settings.timeUntilNextText : "알람이 꺼져 있어요")
+                Text(subtitle)
                     .font(Theme.label)
                     .foregroundStyle(Theme.inkSoft)
             }
@@ -73,20 +80,75 @@ struct HomeView: View {
         }
     }
 
-    private var stageNotice: some View {
+    private var subtitle: String {
+        guard settings.isEnabled else { return "알람이 꺼져 있어요" }
+        guard scheduler.isDailyScheduled else { return "아직 예약되지 않았어요" }
+        return settings.timeUntilNextText
+    }
+
+    private func missionCard(_ started: Date) -> some View {
         GlassCard(cornerRadius: 20, padding: 18) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("1단계 확인용 빌드예요")
+                Text("미션 시작으로 열렸어요")
                     .font(Theme.body)
                     .foregroundStyle(Theme.ink)
-                Text("지금은 시각을 저장하는 것까지만 합니다. 실제 알람 울림은 2단계, 밝기 측정은 3단계, 걸으면 멈추는 판정은 4단계에서 붙습니다.")
+                Text("\(AppLogger.stamp(started).prefix(8))에 알람 화면의 미션 시작 버튼을 눌렀어요. 걸으면 멈추는 판정은 4단계에서 붙습니다.")
                     .font(Theme.label)
                     .foregroundStyle(Theme.inkSoft)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("설치와 실행이 잘 됐는지는 디버그 화면의 로그로 확인해 주세요.")
+            }
+        }
+    }
+
+    /// 예약 상태. 권한이 꺼져 있거나 예약에 실패했으면 이유와 고치는 방법을 말한다.
+    @ViewBuilder
+    private var statusCard: some View {
+        if scheduler.authorization == .denied {
+            GlassCard(cornerRadius: 20, padding: 18) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("알람 권한이 꺼져 있어요")
+                        .font(Theme.body)
+                        .foregroundStyle(Theme.signal)
+                    Text("권한이 없으면 정해진 시각에 알람을 울릴 수 없어요. 설정 > 산책 알람 > 알람에서 켜 주세요.")
+                        .font(Theme.label)
+                        .foregroundStyle(Theme.inkSoft)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button("설정 열기") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            openURL(url)
+                        }
+                    }
+                    .buttonStyle(.glass)
                     .font(Theme.label)
-                    .foregroundStyle(Theme.inkSoft)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .foregroundStyle(Theme.ink)
+                }
+            }
+        } else if let error = scheduler.lastError {
+            GlassCard(cornerRadius: 20, padding: 18) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("알람을 예약하지 못했어요")
+                        .font(Theme.body)
+                        .foregroundStyle(Theme.signal)
+                    Text(error)
+                        .font(Theme.label)
+                        .foregroundStyle(Theme.inkSoft)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("디버그 화면에서 로그를 내보내 보내 주세요.")
+                        .font(Theme.label)
+                        .foregroundStyle(Theme.inkSoft)
+                }
+            }
+        } else {
+            GlassCard(cornerRadius: 20, padding: 18) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("2단계 확인용 빌드예요")
+                        .font(Theme.body)
+                        .foregroundStyle(Theme.ink)
+                    Text("알람이 시스템 알람으로 울려요. 알람 화면의 미션 시작을 누르면 앱이 열립니다. 잠금·무음 상태 확인은 디버그 화면의 1분 뒤 알람 테스트로 해 보세요.")
+                        .font(Theme.label)
+                        .foregroundStyle(Theme.inkSoft)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }
