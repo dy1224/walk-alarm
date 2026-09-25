@@ -9,7 +9,8 @@ struct WalkAlarmMetadata: AlarmMetadata {}
 /// AlarmKit 예약을 한 곳에서 맡는다.
 ///
 /// 2단계 범위: 매일 알람 1개 + 디버그용 "1분 뒤 테스트 알람".
-/// 시스템 알람 화면에는 "끄기"와 "미션 시작"(누르면 앱이 열림) 버튼을 둔다.
+/// 시스템 알람 화면에는 "미션 시작" 버튼 하나만 둔다. AlarmKit은 멈춤 버튼을 꼭 요구하므로
+/// 멈춤 버튼 자리를 "미션 시작"으로 쓰고, 누르면 알람이 멈추면서 앱이 열리게 한다.
 /// 연쇄 알람 15개는 4단계에서 여기에 붙인다.
 ///
 /// 예약·취소는 `await`를 끼고 일어나므로, 토글을 빠르게 여러 번 눌러도 알람이
@@ -243,12 +244,6 @@ final class AlarmScheduler {
         stopAllAlerting(pressed: alarmID)
     }
 
-    /// 시스템 알람 화면에서 "끄기"를 눌렀다.
-    func handleStop(alarmID: String) {
-        AppLogger.shared.state("시스템 알람 끄기 버튼 · \(alarmID.prefix(8))", category: "alarm")
-        stopAllAlerting(pressed: alarmID)
-    }
-
     /// 버튼이 눌린 알람과, 함께 울리고 있는 다른 알람을 모두 멈춘다.
     /// 여러 알람이 같은 시각에 울리면 버튼은 그중 하나에만 전달되기 때문이다.
     private func stopAllAlerting(pressed alarmID: String) {
@@ -278,9 +273,7 @@ final class AlarmScheduler {
     ) -> AlarmManager.AlarmConfiguration<WalkAlarmMetadata> {
         let alert = AlarmPresentation.Alert(
             title: title,
-            stopButton: AlarmButton(text: "끄기", textColor: Theme.ink, systemImageName: "stop.fill"),
-            secondaryButton: AlarmButton(text: "미션 시작", textColor: Theme.night, systemImageName: "figure.walk"),
-            secondaryButtonBehavior: .custom
+            stopButton: AlarmButton(text: "미션 시작", textColor: Theme.night, systemImageName: "figure.walk")
         )
         let attributes = AlarmAttributes<WalkAlarmMetadata>(
             presentation: AlarmPresentation(alert: alert),
@@ -291,8 +284,7 @@ final class AlarmScheduler {
             countdownDuration: nil,
             schedule: schedule,
             attributes: attributes,
-            stopIntent: StopAlarmIntent(alarmID: id.uuidString),
-            secondaryIntent: StartMissionIntent(alarmID: id.uuidString)
+            stopIntent: StartMissionIntent(alarmID: id.uuidString)
         )
     }
 
