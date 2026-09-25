@@ -46,7 +46,6 @@ final class AlarmScheduler {
     /// 시스템 알람 화면의 "미션 시작"으로 앱이 열린 시각.
     private(set) var lastMissionStart: Date?
 
-    @ObservationIgnored private let manager = AlarmManager.shared
     @ObservationIgnored private let defaults = UserDefaults.standard
     @ObservationIgnored private var updatesTask: Task<Void, Never>?
     @ObservationIgnored private var syncChain: Task<Void, Never>?
@@ -88,7 +87,7 @@ final class AlarmScheduler {
         )
 
         guard updatesTask == nil else { return }
-        let updates = manager.alarmUpdates
+        let updates = AlarmManager.shared.alarmUpdates
         updatesTask = Task { [weak self] in
             for await alarms in updates {
                 self?.receive(alarms)
@@ -97,11 +96,11 @@ final class AlarmScheduler {
     }
 
     func refreshAuthorization() {
-        authorization = Self.map(manager.authorizationState)
+        authorization = Self.map(AlarmManager.shared.authorizationState)
     }
 
     func refreshAlarms() {
-        receive((try? manager.alarms) ?? [])
+        receive((try? AlarmManager.shared.alarms) ?? [])
     }
 
     // MARK: - 권한
@@ -117,7 +116,7 @@ final class AlarmScheduler {
             return false
         case .notDetermined:
             do {
-                let state = try await manager.requestAuthorization()
+                let state = try await AlarmManager.shared.requestAuthorization()
                 authorization = Self.map(state)
                 AppLogger.shared.info("AlarmKit 권한 요청 결과 · \(authorization.text)", category: "alarm")
                 return authorization == .authorized
@@ -155,7 +154,7 @@ final class AlarmScheduler {
 
         if let id = dailyID {
             do {
-                try manager.cancel(id: id)
+                try AlarmManager.shared.cancel(id: id)
                 AppLogger.shared.info("매일 알람 예약 취소 · \(Self.short(id))", category: "alarm")
             } catch {
                 AppLogger.shared.debug("이전 매일 알람이 이미 없음 · \(Self.short(id))", category: "alarm")
@@ -181,9 +180,9 @@ final class AlarmScheduler {
             )
         )
         do {
-            _ = try await manager.schedule(
+            _ = try await AlarmManager.shared.schedule(
                 id: id,
-                configuration: makeConfiguration(id: id, schedule: schedule, title: "산책 갈 시간이에요")
+                configuration: Self.makeConfiguration(id: id, schedule: schedule, title: "산책 갈 시간이에요")
             )
             dailyID = id
             defaults.set(signature, forKey: Key.dailySignature)
@@ -204,9 +203,9 @@ final class AlarmScheduler {
         let id = UUID()
         let fireDate = Date().addingTimeInterval(seconds)
         do {
-            _ = try await manager.schedule(
+            _ = try await AlarmManager.shared.schedule(
                 id: id,
-                configuration: makeConfiguration(id: id, schedule: .fixed(fireDate), title: "테스트 알람이에요")
+                configuration: Self.makeConfiguration(id: id, schedule: .fixed(fireDate), title: "테스트 알람이에요")
             )
             lastError = nil
             AppLogger.shared.info(
@@ -223,7 +222,7 @@ final class AlarmScheduler {
     func cancelTests() {
         for entry in entries where entry.id != dailyID {
             do {
-                try manager.cancel(id: entry.id)
+                try AlarmManager.shared.cancel(id: entry.id)
                 AppLogger.shared.info("테스트 알람 취소 · \(Self.short(entry.id))", category: "alarm")
             } catch {
                 report("테스트 알람 취소 실패", error)
@@ -250,13 +249,13 @@ final class AlarmScheduler {
     private func stopIfAlerting(alarmID: String) {
         guard let id = UUID(uuidString: alarmID) else { return }
         // 시스템이 이미 멈췄으면 오류가 나므로 무시한다.
-        try? manager.stop(id: id)
+        try? AlarmManager.shared.stop(id: id)
         refreshAlarms()
     }
 
     // MARK: - 내부
 
-    private func makeConfiguration(
+    nonisolated private static func makeConfiguration(
         id: UUID,
         schedule: Alarm.Schedule,
         title: LocalizedStringResource
